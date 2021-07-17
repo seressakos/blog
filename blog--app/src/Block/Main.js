@@ -1,16 +1,15 @@
-import React, {useContext} from "react";
+import React from "react";
 import Filters from "./Filters";
-import StateManager from "../store/StateManager";
+import Pagination from "./Pagination";
+import Cards from "./Cards";
+
 
 const Main = () => {
-  const state = useContext(StateManager);
-
   return (
     <div>
      <Filters/>
-      {state.cards.map(card => {
-        return <div>{card.title}</div>
-      })}
+      <Cards/>
+      <Pagination/>
     </div>
   )
 }

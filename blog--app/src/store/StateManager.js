@@ -3,6 +3,7 @@ import React, {useState, useEffect} from "react";
 const StateManager = React.createContext({
    filters: [],
    cards: [],
+  pagination: [],
   handleCheckEvent: (e) => {}
 })
 
@@ -10,7 +11,9 @@ export const StateProvider = (props) => {
    const [filters, setFilters] = useState([]);
    const [load, setLoad] = useState('false');
    const [cards, setCards] = useState([]);
-   const [paginationUrls, setPaginationUrls] = useState([])
+   const [paginationUrls, setPaginationUrls] = useState([]);
+
+  let paginationArray = [];
 
   const getCards = (array, index, element) => {
     return {
@@ -37,13 +40,13 @@ export const StateProvider = (props) => {
                  })]
                  );
 
-             contentFetcher('http://backend.fodorzsana.hu/jsonapi/node/blog?include=field_image&fields[file--file]=uri&sort=-nid');
+             contentFetcher('http://backend.fodorzsana.hu/jsonapi/node/blog?include=field_image&fields[file--file]=uri&sort=-nid&page[limit]=5');
           })
 
    },[])
 
   const contentFetcher = (url, currentUrl = url) => {
-    setLoad(true)
+    setLoad(true);
 
     Promise.all([
       fetch(`${url}`, {'method': 'GET'}),
@@ -66,30 +69,67 @@ export const StateProvider = (props) => {
               }
             });
 
+            paginationArray=[...paginationArray, ...[{
+              'url': url,
+              'active': true,
+            }]]
+
             setCards(cardsArray)
           }
 
-          let urls = [{
-            'url': url,
-            'active': true,
-          }];
-
           if (data[0]['links']['next']) {
             const newUrl = data[0]['links']['next']['href'];
-            urls = [...urls, ...[{
+
+            paginationArray=[...paginationArray, ...[{
               'url': newUrl,
-              'active': url === newUrl ? true : false,
-            }]];
-
-            urls.map((e, index) => {
-              e.id = `pagination--item-${index}`
-            });
-
-            setPaginationUrls([...paginationUrls, ...urls])
+              'active': false,
+            }]]
 
             contentFetcher(newUrl, currentUrl);
           }
 
+          paginationArray.map((e, index) => {
+            e.id = `pagination--item-${index}`
+          })
+
+          setPaginationUrls(paginationArray)
+
+        });
+  }
+
+  const handlePagination = (event)=> {
+     event.preventDefault();
+     let url = event.target.href;
+
+     let paginationArray = [...paginationUrls];
+
+     paginationArray.map(element=> {
+       element.active = event.target.id === element.id;
+     })
+
+    setPaginationUrls(paginationArray)
+
+    Promise.all([
+      fetch(`${url}`, {'method': 'GET'}),
+    ])
+        .then(values => Promise.all(values.map(value => value.json())))
+        .then(data => {
+          let cardsArray = [];
+
+          data[0]['data'].map((element, index) => {
+            const arrayHasObject = cardsArray.some(el => el.title === element['attributes']['title'].toString());
+
+            if (!arrayHasObject) {
+              cardsArray = [
+                ...cardsArray,
+                ...[
+                  getCards(data, index, element),
+                ],
+              ]
+            }
+          });
+
+          setCards(cardsArray)
         });
   }
 
@@ -111,7 +151,7 @@ export const StateProvider = (props) => {
 
      })
 
-     contentFetcher(`http://backend.fodorzsana.hu/jsonapi/node/blog${headerFragmentArray.join('')}`)
+     contentFetcher(`http://backend.fodorzsana.hu/jsonapi/node/blog${headerFragmentArray.join('')}&page[limit]=5`)
 
      setFilters(terms);
 
@@ -122,10 +162,14 @@ export const StateProvider = (props) => {
          document.title,
          `${window.location.origin}${window.location.pathname}?${urlParams.toString()}`,
      )
-
    };
 
-   return <StateManager.Provider value={{filters: filters, cards:cards, handleCheckEvent:handleCheckEvent}}>{props.children}</StateManager.Provider>
+   return <StateManager.Provider value={{filters: filters,
+     cards:cards,
+     handleCheckEvent:handleCheckEvent,
+     pagination: paginationUrls,
+     handlePagination: handlePagination,
+   }}>{props.children}</StateManager.Provider>
 }
 
 
