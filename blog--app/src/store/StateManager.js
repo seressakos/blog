@@ -12,6 +12,7 @@ export const StateProvider = (props) => {
    const [load, setLoad] = useState('false');
    const [cards, setCards] = useState([]);
    const [paginationUrls, setPaginationUrls] = useState([]);
+   const [prevAndNextLink, setPrevAndNextLink] = useState({});
 
   let paginationArray = [];
 
@@ -57,16 +58,12 @@ export const StateProvider = (props) => {
             let cardsArray = [];
 
             data[0]['data'].map((element, index) => {
-              const arrayHasObject = cardsArray.some(el => el.title === element['attributes']['title'].toString());
-
-              if (!arrayHasObject) {
-                cardsArray = [
-                  ...cardsArray,
-                  ...[
-                    getCards(data, index, element),
-                  ],
-                ]
-              }
+              cardsArray = [
+                ...cardsArray,
+                ...[
+                  getCards(data, index, element),
+                ],
+              ]
             });
 
             paginationArray=[...paginationArray, ...[{
@@ -74,7 +71,11 @@ export const StateProvider = (props) => {
               'active': true,
             }]]
 
-            setCards(cardsArray)
+            setCards(cardsArray);
+            setPrevAndNextLink({
+              prev : data[0]['links']['prev'] ? data[0]['links']['prev']['href'] : '',
+              next : data[0]['links']['next'] ? data[0]['links']['next']['href'] : '',
+            })
           }
 
           if (data[0]['links']['next']) {
@@ -117,19 +118,19 @@ export const StateProvider = (props) => {
           let cardsArray = [];
 
           data[0]['data'].map((element, index) => {
-            const arrayHasObject = cardsArray.some(el => el.title === element['attributes']['title'].toString());
-
-            if (!arrayHasObject) {
-              cardsArray = [
-                ...cardsArray,
-                ...[
-                  getCards(data, index, element),
-                ],
-              ]
-            }
+            cardsArray = [
+              ...cardsArray,
+              ...[
+                getCards(data, index, element),
+              ],
+            ]
           });
 
           setCards(cardsArray)
+          setPrevAndNextLink({
+            prev : data[0]['links']['prev'] ? data[0]['links']['prev']['href'] : '',
+            next : data[0]['links']['next'] ? data[0]['links']['next']['href'] : '',
+          })
         });
   }
 
@@ -169,6 +170,7 @@ export const StateProvider = (props) => {
      handleCheckEvent:handleCheckEvent,
      pagination: paginationUrls,
      handlePagination: handlePagination,
+     pagerArrows: prevAndNextLink,
    }}>{props.children}</StateManager.Provider>
 }
 
