@@ -13,7 +13,6 @@ export const StateProvider = (props) => {
    const [cards, setCards] = useState([]);
    const [paginationUrls, setPaginationUrls] = useState([]);
    const [prevAndNextLink, setPrevAndNextLink] = useState({});
-
   let paginationArray = [];
 
   const getCards = (array, index, element) => {
@@ -31,15 +30,17 @@ export const StateProvider = (props) => {
       ])
           .then (values => Promise.all(values.map(value => value.json())))
           .then (data => {
-             setFilters([...filters,
-                 ...data[0]['data'].map(filter=> {
-                    return {
-                      name: filter['attributes']['name'],
-                      id: filter['attributes']['drupal_internal__tid'],
-                      isChecked: false,
-                    }
-                 })]
-                 );
+            let filters = [];
+
+            data[0]['data'].map(filter=> {
+              filters.push({
+                name: filter['attributes']['name'],
+                id: filter['attributes']['drupal_internal__tid'],
+                isChecked: false,
+              })
+            })
+
+             setFilters(filters);
 
              contentFetcher('http://backend.fodorzsana.hu/jsonapi/node/blog?include=field_image&fields[file--file]=uri&sort=-nid&page[limit]=5');
           })
@@ -48,6 +49,7 @@ export const StateProvider = (props) => {
 
   const contentFetcher = (url, currentUrl = url) => {
     setLoad(true);
+    console.log(paginationArray)
 
     Promise.all([
       fetch(`${url}`, {'method': 'GET'}),
@@ -179,3 +181,5 @@ export default StateManager
 
 // http://backend.fodorzsana.hu/jsonapi/node/blog?filter[field_tag][condition][path]=field_tag.drupal_internal__tid&filter[field_tag][condition][value][]=2&filter[field_tag][condition][value][]=1&filter[field_tag][condition][operator]=IN
 // http://backend.fodorzsana.hu/jsonapi/node/blog?filter[blue-and][group][conjunction]=AND&filter[blue][condition][value]=one&filter[blue][condition][path]=field_tag.name&filter[blue][condition][memberOf]=blue-and&filter[red-and][group][conjunction]=AND&filter[red][condition][value]=two&filter[red][condition][path]=field_tag.name&filter[red][condition][memberOf]=red-and
+
+// http://backend.fodorzsana.hu/jsonapi/node/blog?filter[search-or][group][conjunction]=OR&filter[body-filter][condition][path]=body.value&filter[body-filter][condition][operator]=CONTAINS&filter[body-filter][condition][value]%20=%20cica&filter[body-filter][condition][memberOf]=search-or&filter[title][operator]=CONTAINS&filter[title][value]=%20Lofasz&filter[title][condition][memberOf]=search-or&include=field_site_image&fields[file--file]=uri

@@ -3,6 +3,7 @@
   <component name="ProjectModuleManager">
     <modules>
       <module fileurl="file://$PROJECT_DIR$/.idea/blog--app.iml" filepath="$PROJECT_DIR$/.idea/blog--app.iml" />
+      <module fileurl="file://$PROJECT_DIR$/../../faceted-search/my-faceted-search/.idea/my-faceted-search.iml" filepath="$PROJECT_DIR$/../../faceted-search/my-faceted-search/.idea/my-faceted-search.iml" />
     </modules>
   </component>
 </project>
