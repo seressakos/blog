@@ -13,6 +13,8 @@ export const StateProvider = (props) => {
    const [cards, setCards] = useState([]);
    const [paginationUrls, setPaginationUrls] = useState([]);
    const [prevAndNextLink, setPrevAndNextLink] = useState({});
+   const [searchText, setSearchText] = useState('');
+
   let paginationArray = [];
 
   const getCards = (array, index, element) => {
@@ -24,7 +26,7 @@ export const StateProvider = (props) => {
     };
   };
 
-   useEffect(()=> {
+   useEffect(() => {
       Promise.all([
          fetch(`http://backend.fodorzsana.hu/jsonapi/taxonomy_term/tags`, {'method': 'GET'}),
       ])
@@ -49,7 +51,6 @@ export const StateProvider = (props) => {
 
   const contentFetcher = (url, currentUrl = url) => {
     setLoad(true);
-    console.log(paginationArray)
 
     Promise.all([
       fetch(`${url}`, {'method': 'GET'}),
@@ -68,16 +69,16 @@ export const StateProvider = (props) => {
               ]
             });
 
-            paginationArray=[...paginationArray, ...[{
-              'url': url,
-              'active': true,
-            }]]
-
             setCards(cardsArray);
             setPrevAndNextLink({
               prev : data[0]['links']['prev'] ? data[0]['links']['prev']['href'] : '',
               next : data[0]['links']['next'] ? data[0]['links']['next']['href'] : '',
             })
+
+            paginationArray=[...paginationArray, ...[{
+              'url': url,
+              'active': true,
+            }]]
           }
 
           if (data[0]['links']['next']) {
@@ -96,7 +97,6 @@ export const StateProvider = (props) => {
           })
 
           setPaginationUrls(paginationArray)
-
         });
   }
 
@@ -136,27 +136,46 @@ export const StateProvider = (props) => {
         });
   }
 
+  const makeCallWithUrlQuery = (event) => {
+    const terms = filters;
+    const headerFragmentArray = [];
+
+    terms.map((filter) => {
+      if (event) {
+        if (filter.id == event.target.id) {
+          filter.isChecked = event.target.checked
+        }
+      }
+
+      if (filter.isChecked) {
+        headerFragmentArray.push(`${headerFragmentArray.length > 0 ? '&' : '?'}
+         filter[${filter.id}-group][group][conjunction]=AND&
+         filter[${filter.id}][condition][value]=${filter.id}&
+         filter[${filter.id}][condition][path]=field_tag.drupal_internal__tid&
+         filter[${filter.id}][condition][memberOf]=${filter.id}-group`)
+      }
+    })
+
+    contentFetcher(`http://backend.fodorzsana.hu/jsonapi/node/blog${headerFragmentArray.length > 0 ? headerFragmentArray.join('') + '&' : '?'}
+       filter[search-or][group][conjunction]=OR&
+       filter[body-filter][condition][path]=body.value&
+       filter[body-filter][condition][operator]=CONTAINS&
+       filter[body-filter][condition][value]=${searchText}&
+       filter[body-filter][condition][memberOf]=search-or&filter[title][operator]=CONTAINS&
+       filter[title][value]=${searchText}&
+       filter[title][condition][memberOf]=search-or&
+       include=field_image&fields[file--file]=uri&
+       &sort=-nid&
+       page[limit]=5`)
+
+
+    if (event) {
+      setFilters(terms);
+    }
+  }
+
    const handleCheckEvent = (event) => {
-     setPaginationUrls([]);
-     const terms = filters;
-     const headerFragmentArray = [];
-     let separator;
-
-     terms.map((filter, index) => {
-       if (filter.id == event.target.id) {
-         filter.isChecked = event.target.checked
-       }
-
-       if (filter.isChecked) {
-         separator = index === 0 ? '?' : '&';
-         headerFragmentArray.push(`${separator}filter[${filter.id}-group][group][conjunction]=AND&filter[${filter.id}][condition][value]=${filter.id}&filter[${filter.id}][condition][path]=field_tag.drupal_internal__tid&filter[${filter.id}][condition][memberOf]=${filter.id}-group`)
-       }
-
-     })
-
-     contentFetcher(`http://backend.fodorzsana.hu/jsonapi/node/blog${headerFragmentArray.join('')}&page[limit]=5`)
-
-     setFilters(terms);
+     makeCallWithUrlQuery(event);
 
      const urlParams = new URLSearchParams(window.location.search);
      urlParams.set('filter', event.target.id);
@@ -167,19 +186,24 @@ export const StateProvider = (props) => {
      )
    };
 
+   const inputHandler = (e) => {
+     setSearchText(e.target.value);
+   }
+
+   const handleSearch = () => {
+     makeCallWithUrlQuery(false);
+   }
+
    return <StateManager.Provider value={{filters: filters,
      cards:cards,
      handleCheckEvent:handleCheckEvent,
      pagination: paginationUrls,
      handlePagination: handlePagination,
      pagerArrows: prevAndNextLink,
+     handleSearch: handleSearch,
+     inputHandler: inputHandler,
    }}>{props.children}</StateManager.Provider>
 }
 
 
 export default StateManager
-
-// http://backend.fodorzsana.hu/jsonapi/node/blog?filter[field_tag][condition][path]=field_tag.drupal_internal__tid&filter[field_tag][condition][value][]=2&filter[field_tag][condition][value][]=1&filter[field_tag][condition][operator]=IN
-// http://backend.fodorzsana.hu/jsonapi/node/blog?filter[blue-and][group][conjunction]=AND&filter[blue][condition][value]=one&filter[blue][condition][path]=field_tag.name&filter[blue][condition][memberOf]=blue-and&filter[red-and][group][conjunction]=AND&filter[red][condition][value]=two&filter[red][condition][path]=field_tag.name&filter[red][condition][memberOf]=red-and
-
-// http://backend.fodorzsana.hu/jsonapi/node/blog?filter[search-or][group][conjunction]=OR&filter[body-filter][condition][path]=body.value&filter[body-filter][condition][operator]=CONTAINS&filter[body-filter][condition][value]%20=%20cica&filter[body-filter][condition][memberOf]=search-or&filter[title][operator]=CONTAINS&filter[title][value]=%20Lofasz&filter[title][condition][memberOf]=search-or&include=field_site_image&fields[file--file]=uri
