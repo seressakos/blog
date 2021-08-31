@@ -1,4 +1,5 @@
 import React, {useState, useEffect} from "react";
+import {getCards} from "../helpers/getCards";
 
 const StateManager = React.createContext({
    filters: [],
@@ -16,15 +17,6 @@ export const StateProvider = (props) => {
    const [searchText, setSearchText] = useState('');
 
   let paginationArray = [];
-
-  const getCards = (array, index, element) => {
-    return {
-      // imageurl: `${this.state.appRoot}/${array[0]['included'][index]['attributes']['uri']['url']}`,
-      title: element['attributes']['title'].toString(),
-      // alias: element['attributes']['path']['alias'],
-      // alt: element['relationships']['field_site_image']['data'][0]['meta']['alt'],
-    };
-  };
 
    useEffect(() => {
       Promise.all([
