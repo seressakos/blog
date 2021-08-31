@@ -1,5 +1,6 @@
 import React, {useState, useEffect} from "react";
-import {getCards} from "../helpers/getCards";
+import {getCards} from "../helpers/helpers";
+import {createCardsArray} from "../helpers/helpers";
 
 const StateManager = React.createContext({
    filters: [],
@@ -50,18 +51,7 @@ export const StateProvider = (props) => {
         .then(values => Promise.all(values.map(value => value.json())))
         .then(data => {
           if (url === currentUrl) {
-            let cardsArray = [];
-
-            data[0]['data'].map((element, index) => {
-              cardsArray = [
-                ...cardsArray,
-                ...[
-                  getCards(data, index, element),
-                ],
-              ]
-            });
-
-            setCards(cardsArray);
+            setCards(createCardsArray(data));
             setPrevAndNextLink({
               prev : data[0]['links']['prev'] ? data[0]['links']['prev']['href'] : '',
               next : data[0]['links']['next'] ? data[0]['links']['next']['href'] : '',
@@ -109,18 +99,7 @@ export const StateProvider = (props) => {
     ])
         .then(values => Promise.all(values.map(value => value.json())))
         .then(data => {
-          let cardsArray = [];
-
-          data[0]['data'].map((element, index) => {
-            cardsArray = [
-              ...cardsArray,
-              ...[
-                getCards(data, index, element),
-              ],
-            ]
-          });
-
-          setCards(cardsArray)
+          setCards(createCardsArray(data))
           setPrevAndNextLink({
             prev : data[0]['links']['prev'] ? data[0]['links']['prev']['href'] : '',
             next : data[0]['links']['next'] ? data[0]['links']['next']['href'] : '',
