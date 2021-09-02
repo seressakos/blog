@@ -1,12 +1,11 @@
 import React, {useState, useEffect} from "react";
-import {getCards} from "../helpers/helpers";
 import {createCardsArray} from "../helpers/helpers";
 
 const StateManager = React.createContext({
    filters: [],
    cards: [],
-  pagination: [],
-  handleCheckEvent: (e) => {}
+   pagination: [],
+   handleCheckEvent: (e) => {}
 })
 
 export const StateProvider = (props) => {
@@ -16,10 +15,15 @@ export const StateProvider = (props) => {
    const [paginationUrls, setPaginationUrls] = useState([]);
    const [prevAndNextLink, setPrevAndNextLink] = useState({});
    const [searchText, setSearchText] = useState('');
-
-  let paginationArray = [];
+   const urlParams = new URLSearchParams(window.location.search);
+   let paginationArray = [];
+   let urlArray = [];
 
    useEffect(() => {
+     let baseFilter = urlParams.get('filter') || '';
+     const filterNames = baseFilter.split('&filter_');
+     filterNames.shift()
+
       Promise.all([
          fetch(`http://backend.fodorzsana.hu/jsonapi/taxonomy_term/tags`, {'method': 'GET'}),
       ])
@@ -27,19 +31,31 @@ export const StateProvider = (props) => {
           .then (data => {
             let filters = [];
 
-            data[0]['data'].map(filter=> {
+            data[0]['data'].map(filter => {
               filters.push({
                 name: filter['attributes']['name'],
                 id: filter['attributes']['drupal_internal__tid'],
-                isChecked: false,
+                isChecked: filterNames.includes(filter['attributes']['name']),
               })
+
+              if (filterNames.includes(filter['attributes']['name'])) {
+                urlArray.push(`${urlArray.length > 0 ? '&' : '?'}
+                     filter[${filter['attributes']['drupal_internal__tid']}-group][group][conjunction]=AND&
+                     filter[${filter['attributes']['drupal_internal__tid']}][condition][value]=${filter['attributes']['drupal_internal__tid']}&
+                     filter[${filter['attributes']['drupal_internal__tid']}][condition][path]=field_tag.drupal_internal__tid&
+                     filter[${filter['attributes']['drupal_internal__tid']}][condition][memberOf]=${filter['attributes']['drupal_internal__tid']}-group`
+                );
+              }
             })
 
              setFilters(filters);
 
-             contentFetcher('http://backend.fodorzsana.hu/jsonapi/node/blog?include=field_image&fields[file--file]=uri&sort=-nid&page[limit]=5');
+            if (baseFilter === '') {
+              contentFetcher('http://backend.fodorzsana.hu/jsonapi/node/blog?include=field_image&fields[file--file]=uri&sort=-nid&page[limit]=5');
+            } else {
+              contentFetcher(`http://backend.fodorzsana.hu/jsonapi/node/blog${urlArray.join('')}&include=field_image&fields[file--file]=uri&sort=-nid&page[limit]=5`)
+            }
           })
-
    },[])
 
   const contentFetcher = (url, currentUrl = url) => {
@@ -109,7 +125,8 @@ export const StateProvider = (props) => {
 
   const makeCallWithUrlQuery = (event) => {
     const terms = filters;
-    const headerFragmentArray = [];
+    urlArray = [];
+    const urlFragmentArray = [];
 
     terms.map((filter) => {
       if (event) {
@@ -119,15 +136,25 @@ export const StateProvider = (props) => {
       }
 
       if (filter.isChecked) {
-        headerFragmentArray.push(`${headerFragmentArray.length > 0 ? '&' : '?'}
+        urlArray.push(`${urlArray.length > 0 ? '&' : '?'}
          filter[${filter.id}-group][group][conjunction]=AND&
          filter[${filter.id}][condition][value]=${filter.id}&
          filter[${filter.id}][condition][path]=field_tag.drupal_internal__tid&
-         filter[${filter.id}][condition][memberOf]=${filter.id}-group`)
+         filter[${filter.id}][condition][memberOf]=${filter.id}-group`
+        )
+
+        urlFragmentArray.push(`&filter_${filter.name}`)
       }
     })
 
-    contentFetcher(`http://backend.fodorzsana.hu/jsonapi/node/blog${headerFragmentArray.length > 0 ? headerFragmentArray.join('') + '&' : '?'}
+    urlParams.set('filter',  urlFragmentArray.join('').toString());
+    window.history.replaceState(
+      null,
+      document.title,
+      `${window.location.origin}${window.location.pathname}?${urlParams}`,
+    )
+
+    contentFetcher(`http://backend.fodorzsana.hu/jsonapi/node/blog${urlArray.length > 0 ? urlArray.join('') + '&' : '?'}
        filter[search-or][group][conjunction]=OR&
        filter[body-filter][condition][path]=body.value&
        filter[body-filter][condition][operator]=CONTAINS&
@@ -137,7 +164,7 @@ export const StateProvider = (props) => {
        filter[title][condition][memberOf]=search-or&
        include=field_image&fields[file--file]=uri&
        &sort=-nid&
-       page[limit]=5`)
+       page[limit]=5`);
 
 
     if (event) {
@@ -147,14 +174,6 @@ export const StateProvider = (props) => {
 
    const handleCheckEvent = (event) => {
      makeCallWithUrlQuery(event);
-
-     const urlParams = new URLSearchParams(window.location.search);
-     urlParams.set('filter', event.target.id);
-     window.history.replaceState(
-         null,
-         document.title,
-         `${window.location.origin}${window.location.pathname}?${urlParams.toString()}`,
-     )
    };
 
    const inputHandler = (e) => {
