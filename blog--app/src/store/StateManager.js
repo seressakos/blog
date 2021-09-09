@@ -20,9 +20,10 @@ export const StateProvider = (props) => {
    let urlArray = [];
 
    useEffect(() => {
+     let pageNum = urlParams.get('page') || urlParams.get('page') > 1 ? urlParams.get('page') : false;
      let baseFilter = urlParams.get('filter') || '';
      const filterNames = baseFilter.split('&filter_');
-     filterNames.shift()
+     filterNames.shift();
 
       Promise.all([
          fetch(`http://backend.fodorzsana.hu/jsonapi/taxonomy_term/tags`, {'method': 'GET'}),
@@ -48,17 +49,14 @@ export const StateProvider = (props) => {
               }
             })
 
-             setFilters(filters);
+            setFilters(filters);
 
-            if (baseFilter === '') {
-              contentFetcher('http://backend.fodorzsana.hu/jsonapi/node/blog?include=field_image&fields[file--file]=uri&sort=-nid&page[limit]=5');
-            } else {
-              contentFetcher(`http://backend.fodorzsana.hu/jsonapi/node/blog${urlArray.join('')}&include=field_image&fields[file--file]=uri&sort=-nid&page[limit]=5`)
-            }
+            contentFetcher(`http://backend.fodorzsana.hu/jsonapi/node/blog${urlArray.length > 0 ? urlArray.join('') + '&' : '?'}include=field_image&fields[file--file]=uri&
+            sort=-nid&page[offset]=${pageNum && pageNum > 1 ? (pageNum - 1) * 5 : 0}&page[limit]=5`, pageNum && pageNum > 1)
           })
    },[])
 
-  const contentFetcher = (url, currentUrl = url) => {
+  const contentFetcher = (url, hasPageNumInUrl, currentUrl = url) => {
     setLoad(true);
 
     Promise.all([
@@ -73,26 +71,39 @@ export const StateProvider = (props) => {
               next : data[0]['links']['next'] ? data[0]['links']['next']['href'] : '',
             })
 
-            paginationArray=[...paginationArray, ...[{
-              'url': url,
-              'active': true,
-            }]]
+            if (!hasPageNumInUrl) {
+              paginationArray=[...paginationArray, ...[{
+                'url': url,
+                'active': true,
+              }]]
+            }
           }
 
-          if (data[0]['links']['next']) {
+          if (data[0]['links']['next'] && !hasPageNumInUrl) {
             const newUrl = data[0]['links']['next']['href'];
 
             paginationArray=[...paginationArray, ...[{
               'url': newUrl,
-              'active': false,
-            }]]
+            }]];
 
-            contentFetcher(newUrl, currentUrl);
+            contentFetcher(newUrl, false, currentUrl);
+          }
+          else if(hasPageNumInUrl) {
+            const newUrl = data[0]['links']['first']['href'];
+
+            paginationArray=[...paginationArray, ...[{
+              'url': newUrl,
+            }]];
+
+            contentFetcher(newUrl, false, currentUrl);
           }
 
+
           paginationArray.map((e, index) => {
-            e.id = `pagination--item-${index}`
+            e.id = `pagination--item-${index}`;
+            e.active = currentUrl.replace(/\s/g, '') === decodeURI(e.url).replace(/\s/g, '');
           })
+
 
           setPaginationUrls(paginationArray)
         });
@@ -101,6 +112,8 @@ export const StateProvider = (props) => {
   const handlePagination = (event)=> {
      event.preventDefault();
      let url = event.target.href;
+     let id = event.target.innerHTML;
+
 
      let paginationArray = [...paginationUrls];
 
@@ -121,6 +134,13 @@ export const StateProvider = (props) => {
             next : data[0]['links']['next'] ? data[0]['links']['next']['href'] : '',
           })
         });
+
+    urlParams.set('page',  id.toString());
+    window.history.replaceState(
+      null,
+      document.title,
+      `${window.location.origin}${window.location.pathname}?${urlParams}`,
+    )
   }
 
   const makeCallWithUrlQuery = (event) => {
@@ -147,8 +167,10 @@ export const StateProvider = (props) => {
       }
     })
 
+    urlParams.delete('page')
     urlParams.set('filter',  urlFragmentArray.join('').toString());
-    window.history.replaceState(
+
+    window.history.pushState(
       null,
       document.title,
       `${window.location.origin}${window.location.pathname}?${urlParams}`,
